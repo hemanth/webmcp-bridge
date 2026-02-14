@@ -25,7 +25,9 @@ python3 -m http.server 8081
 
 - MCP over JSON-RPC (`initialize`, `tools/list`, `prompts/list`, `resources/list`, `tools/call`)
 - Tool/prompt/resource explorer + executor
-- Chat mode (Prompt API if available, fallback matcher otherwise)
+- Chat mode with Prompt API (`window.LanguageModel`) and guarded LLM tool planning
+- Prompt API readiness states (`missing`, `downloading`, `ready`, `error`) with chat gating until ready
+- Subtle tool-call trace UI ("Using tool ...") with collapsible args for debugging
 - OAuth discovery + manual auth options
 - WebMCP tool registration for browser AI surfaces
 
@@ -55,6 +57,9 @@ When WebMCP is available, each discovered tool is re-exposed with an `execute(ar
 
 - WebMCP testing currently requires Chrome 146+ and flag:
   - `chrome://flags/#enable-webmcp-testing`
+- Prompt API requires browser support for `window.LanguageModel`.
+- While the on-device model downloads, chat remains disabled and unlocks automatically when ready.
+- Download progress events can be sparse depending on Chrome build; `0%` can persist even when download is in progress.
 - Without WebMCP, the app still works as an MCP explorer/test client.
 - If the remote MCP server does not allow your origin via CORS, direct browser calls will fail.
 

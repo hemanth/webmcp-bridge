@@ -353,6 +353,11 @@
           Each tool call gets proxied back to the original MCP server, so all the heavy lifting
           still happens there. The browser just acts as a bridge.
         </p>
+        <p>
+          In chat mode, Prompt API planning picks and calls tools. Tool activity is shown as subtle
+          "Using tool" entries with expandable args, and chat stays disabled while the local model
+          is downloading or unavailable.
+        </p>
 
         <h3>The WebMCP API</h3>
         <p>
