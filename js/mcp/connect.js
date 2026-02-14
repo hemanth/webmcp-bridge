@@ -1,16 +1,28 @@
+    function setConnectionStatus(text, dotState = 'connected') {
+      const statusDot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      if (!statusDot || !statusText) return;
+
+      if (statusText.textContent !== text) {
+        statusText.textContent = text;
+      }
+
+      const nextClass = dotState === 'connected' ? 'status-dot' : `status-dot ${dotState}`;
+      if (statusDot.className !== nextClass) {
+        statusDot.className = nextClass;
+      }
+    }
+
     // Server connection
     async function connectToServer() {
       const urlInput = document.getElementById('serverUrl');
       const connectBtn = document.getElementById('connectBtn');
-      const statusDot = document.getElementById('statusDot');
-      const statusText = document.getElementById('statusText');
 
       serverUrl = urlInput.value.trim();
       if (!serverUrl) return;
 
       connectBtn.disabled = true;
-      statusDot.className = 'status-dot connecting';
-      statusText.textContent = 'Discovering...';
+      setConnectionStatus('Discovering...', 'connecting');
 
       // Initialize auth
       auth = new MCPAuth(serverUrl);
@@ -34,7 +46,7 @@
 
         if (authInfo.requiresAuth || hasThirdParty) {
           debugLog('warn', 'Authentication required - showing auth modal');
-          statusText.textContent = 'Auth Required';
+          setConnectionStatus('Auth Required', 'disconnected');
           showAuthModal(authInfo);
           connectBtn.disabled = false;
           return;
@@ -56,11 +68,7 @@
 
     // Proceed with actual MCP connection after auth
     async function proceedWithConnection() {
-      const statusDot = document.getElementById('statusDot');
-      const statusText = document.getElementById('statusText');
-
-      statusDot.className = 'status-dot connecting';
-      statusText.textContent = 'Initializing...';
+      setConnectionStatus('Initializing...', 'connecting');
 
       debugSeparator('Step 2: Initializing MCP session');
       debugLog('info', 'Server URL:', serverUrl);
@@ -105,8 +113,7 @@
         // Check for auth errors on initialize
         if (initResponse.status === 401 || initResponse.status === 403) {
           debugLog('error', 'Authentication required (HTTP 401/403)');
-          statusDot.className = 'status-dot disconnected';
-          statusText.textContent = 'Auth Required';
+          setConnectionStatus('Auth Required', 'disconnected');
           const authInfo = await auth.discover();
           showAuthModal(authInfo);
           return;
@@ -139,7 +146,7 @@
 
         debugSeparator('Step 3: Fetching tools list');
 
-        statusText.textContent = 'Fetching tools...';
+        setConnectionStatus('Fetching tools...', 'connecting');
 
         const toolsPayload = {
           jsonrpc: '2.0',
@@ -163,8 +170,7 @@
         // Check for auth errors
         if (response.status === 401 || response.status === 403) {
           debugLog('error', 'Authentication failed');
-          statusDot.className = 'status-dot disconnected';
-          statusText.textContent = 'Auth Failed';
+          setConnectionStatus('Auth Failed', 'disconnected');
 
           // Clear invalid credentials
           if (auth) auth.logout();
@@ -183,8 +189,7 @@
           debugLog('error', 'Tools list error:', data.error);
           // Check if it's an auth error in JSON-RPC
           if (data.error.code === -32001 || data.error.message?.toLowerCase().includes('auth')) {
-            statusDot.className = 'status-dot disconnected';
-            statusText.textContent = 'Auth Required';
+            setConnectionStatus('Auth Required', 'disconnected');
             const authInfo = await auth.discover();
             showAuthModal(authInfo);
             return;
@@ -205,7 +210,7 @@
 
         // Fetch prompts if server supports them
         debugSeparator('Step 3b: Fetching prompts list');
-        statusText.textContent = 'Fetching prompts...';
+        setConnectionStatus('Fetching prompts...', 'connecting');
 
         try {
           const promptsPayload = {
@@ -248,7 +253,7 @@
 
         // Fetch resources if server supports them
         debugSeparator('Step 3c: Fetching resources list');
-        statusText.textContent = 'Fetching resources...';
+        setConnectionStatus('Fetching resources...', 'connecting');
 
         try {
           const resourcesPayload = {
@@ -289,16 +294,16 @@
 
         renderResourceList();
 
-        statusDot.className = 'status-dot';
-        statusText.textContent = 'Connected';
+        setConnectionStatus('Connected', 'connected');
 
         // Save to recent connections
         addToRecentConnections(serverUrl);
 
-        // Initialize AI session with tools if available
-        if (window.ai) {
+        // Initialize Prompt API session if available
+        if (window.LanguageModel) {
           debugSeparator('Step 4a: Initializing Prompt API session');
-          initAISession();
+          await initAISession();
+          await checkAISupport();
         }
 
         // Register tools with WebMCP (navigator.modelContext) if available
@@ -318,8 +323,7 @@
 
       } catch (error) {
         debugLog('error', 'Connection failed:', error.message);
-        statusDot.className = 'status-dot disconnected';
-        statusText.textContent = 'Error';
+        setConnectionStatus('Error', 'disconnected');
         showToast('Connection failed: ' + error.message, 'error');
 
         const toolList = document.getElementById('toolList');

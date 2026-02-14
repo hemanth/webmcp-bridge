@@ -9,6 +9,10 @@
     let currentMode = 'tools';
     let currentCapability = 'tools';
     let aiSession = null;
+    let promptApiState = { available: false, reason: 'Prompt API not initialized.' };
+    let promptApiAvailabilityPollTimer = null;
+    let promptApiInitInFlight = null;
+    let promptApiDownloadProgress = null;
     let debugLogs = [];
     let recentConnections = JSON.parse(localStorage.getItem('mcp_recent_connections') || '[]');
     let lastResults = '';

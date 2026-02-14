@@ -82,6 +82,8 @@
       align-items: center;
       gap: 8px;
       padding: 8px 14px;
+      min-width: 170px;
+      justify-content: center;
       background: var(--bg-tertiary);
       border: none;
       border-radius: 20px;
@@ -94,9 +96,17 @@
     .status-dot {
       width: 6px;
       height: 6px;
+      flex-shrink: 0;
       border-radius: 50%;
       background: var(--success);
       animation: pulse 2s infinite;
+    }
+
+    #statusText {
+      display: inline-block;
+      min-width: 110px;
+      text-align: left;
+      white-space: nowrap;
     }
 
     .status-dot.disconnected { background: var(--error); animation: none; }
@@ -646,6 +656,65 @@
       font-weight: 500;
     }
 
+    .chat-message.tool-call.tool-call-subtle {
+      max-width: 95%;
+      padding: 8px 12px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--text-secondary);
+    }
+
+    .tool-call-details {
+      width: 100%;
+    }
+
+    .tool-call-summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+
+    .tool-call-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .tool-call-summary::before {
+      content: '▸';
+      display: inline-block;
+      width: 10px;
+      color: var(--text-secondary);
+      transition: transform 0.15s ease;
+    }
+
+    .tool-call-details[open] .tool-call-summary::before {
+      transform: rotate(90deg);
+    }
+
+    .tool-call-label {
+      text-transform: uppercase;
+      font-size: 10px;
+      color: var(--text-secondary);
+      letter-spacing: 0.6px;
+    }
+
+    .tool-call-args {
+      margin-top: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
     .chat-input-area {
       display: flex;
       gap: 0;
@@ -788,8 +857,41 @@
       border-left: 2px solid var(--success);
     }
 
+    .ai-status.downloading {
+      border-left: 2px solid var(--warning);
+    }
+
     .ai-status.unavailable {
       border-left: 2px solid var(--error);
+    }
+
+    .download-progress {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .download-progress-track {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+
+    .download-progress-fill {
+      height: 100%;
+      background: var(--warning);
+      transition: width 180ms linear;
+    }
+
+    .download-progress-label {
+      min-width: 36px;
+      text-align: right;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Auth Modal */

@@ -3,7 +3,7 @@
     // ============================================
     async function init() {
       bindStaticEventHandlers();
-      checkAISupport();
+      await checkAISupport();
 
       // Check for OAuth callback
       if (window.location.search.includes('code=')) {

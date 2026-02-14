@@ -9,4 +9,8 @@
       document.getElementById('toolsContainer').classList.toggle('hidden', mode !== 'tools');
       document.getElementById('chatContainer').classList.toggle('active', mode === 'chat');
       document.getElementById('panelTitle').textContent = mode === 'tools' ? 'Test Tool' : 'Chat with AI';
+
+      if (mode === 'chat') {
+        checkAISupport();
+      }
     }
