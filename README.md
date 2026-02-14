@@ -1,69 +1,74 @@
 # webmcp-bridge
 
-A small browser-side bridge between remote MCP servers and browser AI agents.
+Browser bridge for remote MCP servers.
 
-I built this as a hands-on experiment: connect to any MCP endpoint, inspect tools/prompts/resources, test them, and expose those tools to `navigator.modelContext` when WebMCP is available.
+Connect to an MCP endpoint, inspect tools/prompts/resources, execute them from the UI, and register tools with WebMCP (`navigator.modelContext`) when available.
 
-## what this does
+Built as a browser-first MCP playground. No build step. No framework.
 
-- Connects to a remote MCP server over JSON-RPC.
-- Discovers `tools/list`, `prompts/list`, and `resources/list`.
-- Lets you execute tools, fetch prompts, and read resources from the UI.
-- Registers discovered tools with WebMCP (`navigator.modelContext.provideContext`) so browser agents can call them.
-- Includes chat mode with Prompt API fallback behavior.
-- Supports OAuth discovery flow + manual auth modes for testing.
-
-## why this exists
-
-There are already many useful MCP servers. Instead of rebuilding everything for the browser, this bridge lets you reuse what already exists and wire it into emerging browser AI surfaces.
-
-## project structure
-
-- `index.html` - app shell and markup
-- `styles.css` - styling
-- `app.js` - app logic (connection, auth, rendering, execution, chat, WebMCP integration)
-
-## run locally
-
-No build step needed.
+## quick start
 
 ```bash
 cd webmcp-bridge
 python3 -m http.server 8080
 ```
 
-Then open:
+Open `http://localhost:8080`.
 
-`http://localhost:8080`
+If `8080` is busy:
 
-You can also use any static file server you prefer.
+```bash
+python3 -m http.server 8081
+```
 
-## browser requirements
+## features
 
-- Chrome 146+ for current WebMCP testing path.
-- Enable flag: `chrome://flags/#enable-webmcp-testing`
-- Relaunch Chrome after enabling.
+- MCP over JSON-RPC (`initialize`, `tools/list`, `prompts/list`, `resources/list`, `tools/call`)
+- Tool/prompt/resource explorer + executor
+- Chat mode (Prompt API if available, fallback matcher otherwise)
+- OAuth discovery + manual auth options
+- WebMCP tool registration for browser AI surfaces
 
-If WebMCP is not available, the app still works as an MCP explorer/test client.
+## request flow
 
-## usage
+1. Connect to MCP server URL
+2. Run `initialize`
+3. Fetch capabilities (`tools/list`, optional `prompts/list`, optional `resources/list`)
+4. Execute selected action
+5. Surface results in UI and optionally expose tools via WebMCP
 
-1. Enter an MCP server URL.
-2. Connect and authenticate (if required).
-3. Pick a capability tab: Tools, Prompts, or Resources.
-4. Execute and inspect results.
-5. Switch to Chat mode to test natural-language flow over discovered tools.
+When WebMCP is available, each discovered tool is re-exposed with an `execute(args)` function that proxies to remote `tools/call`.
 
-## notes
+## project layout
 
-- Recent connections are stored in localStorage for convenience.
-- OAuth/client/session metadata may be kept in sessionStorage during auth flow.
-- Manual API key/basic/bearer credentials stay in memory (not persisted).
+- `index.html` - app shell
+- `styles.css` - styles
+- `app.js` - bootstrap (`init()`)
+- `js/core/` - shared state + init
+- `js/auth/` - auth client + auth UI
+- `js/mcp/` - parser, connection, execution, WebMCP integration
+- `js/ui/` - rendering and interactions
+- `js/chat/` - chat flow and tool intent logic
+- `js/utils/` - utility helpers
 
-## not production-hardened
+## browser notes
 
-This is a developer-facing playground. It is useful for protocol exploration and quick integration tests, but it is not packaged as a production SaaS/security boundary.
+- WebMCP testing currently requires Chrome 146+ and flag:
+  - `chrome://flags/#enable-webmcp-testing`
+- Without WebMCP, the app still works as an MCP explorer/test client.
+- If the remote MCP server does not allow your origin via CORS, direct browser calls will fail.
 
-## credits
+## storage behavior
 
-Made by Hemanth HM.
+- Recent connections: `localStorage`
+- OAuth/client/session metadata: `sessionStorage`
+- Manual API key/basic/bearer creds: in memory only
+
+## auth behavior
+
+- Supports OAuth discovery from `/.well-known/oauth-authorization-server`
+- Supports dynamic client registration if server exposes `registration_endpoint`
+- Supports PKCE auth code flow
+- Supports manual API key / basic / bearer for testing
+
+OAuth success in browser depends on endpoint accessibility + CORS on required auth/token routes.
