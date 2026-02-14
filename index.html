@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebMCP Bridge - MCP to Browser Tools</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">MCP</div>
+        <div>
+          <h1>WebMCP Bridge</h1>
+          <div class="subtitle">Connect MCP Servers to Browser AI Agents</div>
+        </div>
+      </div>
+      <div class="header-controls">
+        <div class="nav-links">
+          <a href="#" class="nav-link" id="aboutNavLink">About</a>
+          <a href="https://webmachinelearning.github.io/webmcp/" class="nav-link" target="_blank" rel="noopener">Spec</a>
+          <button class="debug-toggle" id="debugToggle">Debug</button>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="tools">Tools</button>
+          <button class="mode-btn" data-mode="chat">Chat</button>
+        </div>
+        <div class="status-badge" aria-live="polite">
+          <div class="status-dot disconnected" id="statusDot"></div>
+          <span id="statusText">Disconnected</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="server-config">
+      <div class="server-config-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+        </svg>
+      </div>
+      <div class="server-input-wrapper">
+        <input type="text" class="server-input" id="serverUrl"
+               placeholder="Enter MCP server URL..."
+               value="https://tc39-mcp.deno.dev/mcp"
+               autocomplete="off"
+               aria-label="MCP Server URL">
+        <div class="recent-connections" id="recentConnections"></div>
+      </div>
+      <button class="connect-btn" id="connectBtn" aria-label="Connect to server">
+        Connect
+      </button>
+    </div>
+    <span id="authBadge"></span>
+
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="authModal">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+        <div class="modal-header">
+          <h2 id="authModalTitle">Authentication Required</h2>
+          <button class="modal-close" id="authModalCloseBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="authInfo" class="auth-info" style="display: none;"></div>
+
+          <!-- OAuth Login (Server's own auth or third-party IdP) - shown first when available -->
+          <div class="auth-section" id="oauthSection" style="display: none;">
+            <div class="auth-section-title" id="oauthSectionTitle">OAuth Authentication</div>
+            <div id="oauthContent">
+              <!-- Single OAuth button or IdP grid -->
+            </div>
+          </div>
+
+          <!-- First Party Auth -->
+          <div class="auth-section" id="firstPartySection">
+            <div class="auth-section-title">Manual Authentication</div>
+            <div class="auth-type-selector">
+              <div class="auth-option" data-auth-type="apikey" role="button" tabindex="0" aria-label="Select API key authentication">
+                <div class="auth-option-icon">K</div>
+                <div class="auth-option-info">
+                  <div class="auth-option-name">API Key</div>
+                  <div class="auth-option-desc">Use a server-issued API key</div>
+                </div>
+              </div>
+              <div class="auth-option" data-auth-type="basic" role="button" tabindex="0" aria-label="Select username and password authentication">
+                <div class="auth-option-icon">U</div>
+                <div class="auth-option-info">
+                  <div class="auth-option-name">Username & Password</div>
+                  <div class="auth-option-desc">Basic authentication credentials</div>
+                </div>
+              </div>
+              <div class="auth-option" data-auth-type="bearer" role="button" tabindex="0" aria-label="Select bearer token authentication">
+                <div class="auth-option-icon">T</div>
+                <div class="auth-option-info">
+                  <div class="auth-option-name">Bearer Token</div>
+                  <div class="auth-option-desc">OAuth or JWT access token</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- API Key Form -->
+            <div class="auth-form" id="apikeyForm">
+              <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="Enter your API key">
+              </div>
+              <button class="btn btn-primary" id="submitApiKeyBtn" style="width: 100%;">Authenticate</button>
+            </div>
+
+            <!-- Basic Auth Form -->
+            <div class="auth-form" id="basicForm">
+              <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="basicUsername" placeholder="Enter username">
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="basicPassword" placeholder="Enter password">
+              </div>
+              <button class="btn btn-primary" id="submitBasicAuthBtn" style="width: 100%;">Authenticate</button>
+            </div>
+
+            <!-- Bearer Token Form -->
+            <div class="auth-form" id="bearerForm">
+              <div class="form-group">
+                <label>Bearer Token</label>
+                <input type="password" id="bearerTokenInput" placeholder="Enter bearer token">
+              </div>
+              <button class="btn btn-primary" id="submitBearerTokenBtn" style="width: 100%;">Authenticate</button>
+            </div>
+          </div>
+
+          <!-- Skip Auth -->
+          <div class="auth-section" id="skipAuthSection">
+            <button class="btn btn-secondary" id="skipAuthBtn" style="width: 100%;">Skip Authentication (Public Server)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="panel">
+        <div class="capability-tabs">
+          <button class="capability-tab active" data-cap="tools">
+            Tools <span class="count" id="toolCount">0</span>
+          </button>
+          <button class="capability-tab" data-cap="prompts">
+            Prompts <span class="count" id="promptCount">0</span>
+          </button>
+          <button class="capability-tab" data-cap="resources">
+            Resources <span class="count" id="resourceCount">0</span>
+          </button>
+        </div>
+        <div class="panel-content" style="padding: 0;">
+          <!-- Search Filter -->
+          <div class="search-wrapper" id="searchWrapper">
+            <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" class="search-input" id="searchInput"
+                   placeholder="Filter tools, prompts, resources..."
+                   aria-label="Search filter">
+          </div>
+
+          <!-- Tools List -->
+          <div class="capability-content active" id="toolsContent">
+            <div class="tool-list" id="toolList">
+              <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <div>Connect to an MCP server to discover tools</div>
+                <div class="empty-state-action">
+                  <button id="focusServerUrlBtn">Enter Server URL</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prompts List -->
+          <div class="capability-content" id="promptsContent">
+            <div class="prompt-list" id="promptList">
+              <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                </svg>
+                <div>No prompts available from this server</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resources List -->
+          <div class="capability-content" id="resourcesContent">
+            <div class="resource-list" id="resourceList">
+              <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                <div>No resources available from this server</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel test-panel">
+        <div class="panel-header">
+          <span id="panelTitle">Test Tool</span>
+        </div>
+        <div class="panel-content">
+          <!-- Tools Mode -->
+          <div class="tools-container" id="toolsContainer">
+            <div class="form-group">
+              <label>Selected Tool</label>
+              <select id="toolSelect">
+                <option value="">-- Connect to server first --</option>
+              </select>
+            </div>
+
+            <div id="dynamicParams">
+              <div class="empty-state" style="padding: 20px;">
+                <div>Select a tool to see parameters</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>JSON Arguments (override)</label>
+              <textarea id="jsonArgs" placeholder='{"query": "example"}'></textarea>
+            </div>
+
+            <div class="btn-group">
+              <button class="btn btn-primary" id="executeBtn" disabled aria-label="Execute selected tool">
+                Execute Tool <span class="kbd">Ctrl+Enter</span>
+              </button>
+              <button class="btn btn-secondary" id="clearResultsBtn" aria-label="Clear results">Clear</button>
+            </div>
+
+            <div class="results-area">
+              <div class="results-header">
+                <span>Response</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span class="execution-time" id="execTime"></span>
+                  <button class="copy-btn" id="copyBtn" style="display: none;" aria-label="Copy results to clipboard">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div class="results-content" id="results">
+                <div class="empty-state">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  <div>Select a tool and execute to see results</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Mode -->
+          <div class="chat-container" id="chatContainer">
+            <div class="ai-status" id="aiStatus"></div>
+            <div class="chat-messages" id="chatMessages">
+              <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                <div>Ask questions and the AI will use MCP tools to help</div>
+              </div>
+            </div>
+            <div class="chat-input-area">
+              <div class="chat-input-wrapper">
+                <textarea class="chat-input" id="chatInput" placeholder="Ask a question..." rows="1"></textarea>
+                <button class="chat-send-btn" id="chatSendBtn" aria-label="Send message">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Made with <span class="heart">&lt;3</span> by <a href="https://h3manth.com" target="_blank" rel="noopener">Hemanth HM</a>
+    </footer>
+  </div>
+
+  <!-- Debug Console -->
+  <div class="debug-console" id="debugConsole">
+    <div class="debug-header">
+      <span class="debug-title">MCP Debug Console</span>
+      <div class="debug-actions">
+        <button class="debug-btn" id="clearDebugLogsBtn">Clear</button>
+        <button class="debug-btn" id="closeDebugBtn">Close</button>
+      </div>
+    </div>
+    <div class="debug-logs" id="debugLogs">
+      <div style="color: var(--text-secondary); text-align: center; padding: 20px;">
+        Connect to an MCP server to see debug logs
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div class="about-modal" id="aboutModal">
+    <div class="about-content" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle">
+      <div class="about-header">
+        <h2 id="aboutModalTitle">About WebMCP Bridge</h2>
+        <button class="about-close" id="aboutCloseBtn">&times;</button>
+      </div>
+      <div class="about-body">
+        <h3>What is this?</h3>
+        <p>
+          WebMCP Bridge is a little experiment I put together to explore the intersection of
+          <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol (MCP)</a>
+          and the browser. It lets you connect to any remote MCP server and exposes its tools to
+          Chrome's upcoming WebMCP API (<code>navigator.modelContext</code>).
+        </p>
+        <p>
+          Think of it as a bridge - you bring your favorite MCP servers, and this page makes their
+          tools available to browser-based AI agents. Pretty neat for testing and learning how these
+          pieces fit together.
+        </p>
+
+        <h3>Why did I build this?</h3>
+        <p>
+          I've been fascinated by how AI agents can interact with web applications. The
+          <a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noopener">WebMCP proposal</a>
+          from folks at Microsoft and Google caught my attention - it's a way for web pages to
+          expose "tools" that AI agents can use, similar to how MCP works for desktop apps.
+        </p>
+        <p>
+          But here's the thing: there are already hundreds of MCP servers out there. What if we
+          could reuse them in the browser? That's exactly what this bridge does.
+        </p>
+
+        <h3>How does it work?</h3>
+        <ul>
+          <li><strong>Connect</strong> - Enter any MCP server URL (or pick from the examples)</li>
+          <li><strong>Discover</strong> - The app fetches available tools via JSON-RPC</li>
+          <li><strong>Register</strong> - Tools get registered with <code>navigator.modelContext.provideContext()</code></li>
+          <li><strong>Use</strong> - Browser AI agents can now invoke these tools</li>
+        </ul>
+        <p>
+          Each tool call gets proxied back to the original MCP server, so all the heavy lifting
+          still happens there. The browser just acts as a bridge.
+        </p>
+
+        <h3>The WebMCP API</h3>
+        <p>
+          The key bit of code that makes this work:
+        </p>
+        <pre class="code-block">navigator.modelContext.provideContext({
+  tools: [{
+    name: "search_proposals",
+    description: "Search TC39 proposals",
+    inputSchema: { type: "object", properties: {...} },
+    execute: async (args) =&gt; {
+      // Proxy to remote MCP server
+      const result = await fetch(mcpServerUrl, {...});
+      return { content: [{ type: "text", text: result }] };
+    }
+  }]
+});</pre>
+
+        <h3>Requirements</h3>
+        <ul>
+          <li>Chrome 146+ with WebMCP flag enabled</li>
+          <li>Go to <code>chrome://flags/#enable-webmcp-testing</code></li>
+          <li>Set to "Enabled" and relaunch</li>
+        </ul>
+
+        <h3>Open the DevTools!</h3>
+        <p>
+          I've added detailed console logs to help you understand the MCP protocol flow.
+          Open DevTools and watch the connection happen - it's a great way to learn how
+          MCP and WebMCP work together.
+        </p>
+
+        <h3>Links</h3>
+        <ul>
+          <li><a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noopener">WebMCP Proposal</a></li>
+          <li><a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a></li>
+          <li><a href="https://h3manth.com" target="_blank" rel="noopener">h3manth.com</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
