@@ -1,11 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebMCP Bridge - MCP to Browser Tools</title>
+  <title>WebMCP Bridge — Connect MCP Servers to Browser AI Agents</title>
+  <meta name="description"
+    content="Bridge any remote MCP server to Chrome's WebMCP API. Discover tools, prompts, and resources — then let browser AI agents use them.">
+  <meta name="author" content="Hemanth HM">
+  <meta name="theme-color" content="#1a1a2e">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="./favicon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="WebMCP Bridge">
+  <meta property="og:description"
+    content="Bridge any remote MCP server to Chrome's WebMCP API. Discover tools, prompts, and resources — then let browser AI agents use them.">
+  <meta property="og:image" content="https://h3manth.com/ai/webmcp/og-image.png">
+  <meta property="og:url" content="https://h3manth.com/ai/webmcp/">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="WebMCP Bridge">
+  <meta name="twitter:description"
+    content="Bridge any remote MCP server to Chrome's WebMCP API. Discover tools, prompts, and resources.">
+  <meta name="twitter:image" content="https://h3manth.com/ai/webmcp/og-image.png">
+  <meta name="twitter:creator" content="@_gnumanth">
+
   <link rel="stylesheet" href="./styles.css">
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -19,7 +45,8 @@
       <div class="header-controls">
         <div class="nav-links">
           <a href="#" class="nav-link" id="aboutNavLink">About</a>
-          <a href="https://webmachinelearning.github.io/webmcp/" class="nav-link" target="_blank" rel="noopener">Spec</a>
+          <a href="https://webmachinelearning.github.io/webmcp/" class="nav-link" target="_blank"
+            rel="noopener">Spec</a>
           <button class="debug-toggle" id="debugToggle">Debug</button>
         </div>
         <div class="mode-toggle">
@@ -39,15 +66,13 @@
     <div class="server-config">
       <div class="server-config-icon">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
         </svg>
       </div>
       <div class="server-input-wrapper">
-        <input type="text" class="server-input" id="serverUrl"
-               placeholder="Enter MCP server URL..."
-               value="https://tc39-mcp.deno.dev/mcp"
-               autocomplete="off"
-               aria-label="MCP Server URL">
+        <input type="text" class="server-input" id="serverUrl" placeholder="Enter MCP server URL..."
+          value="https://tc39-mcp.deno.dev/mcp" autocomplete="off" aria-label="MCP Server URL">
         <div class="recent-connections" id="recentConnections"></div>
       </div>
       <button class="connect-btn" id="connectBtn" aria-label="Connect to server">
@@ -78,21 +103,24 @@
           <div class="auth-section" id="firstPartySection">
             <div class="auth-section-title">Manual Authentication</div>
             <div class="auth-type-selector">
-              <div class="auth-option" data-auth-type="apikey" role="button" tabindex="0" aria-label="Select API key authentication">
+              <div class="auth-option" data-auth-type="apikey" role="button" tabindex="0"
+                aria-label="Select API key authentication">
                 <div class="auth-option-icon">K</div>
                 <div class="auth-option-info">
                   <div class="auth-option-name">API Key</div>
                   <div class="auth-option-desc">Use a server-issued API key</div>
                 </div>
               </div>
-              <div class="auth-option" data-auth-type="basic" role="button" tabindex="0" aria-label="Select username and password authentication">
+              <div class="auth-option" data-auth-type="basic" role="button" tabindex="0"
+                aria-label="Select username and password authentication">
                 <div class="auth-option-icon">U</div>
                 <div class="auth-option-info">
                   <div class="auth-option-name">Username & Password</div>
                   <div class="auth-option-desc">Basic authentication credentials</div>
                 </div>
               </div>
-              <div class="auth-option" data-auth-type="bearer" role="button" tabindex="0" aria-label="Select bearer token authentication">
+              <div class="auth-option" data-auth-type="bearer" role="button" tabindex="0"
+                aria-label="Select bearer token authentication">
                 <div class="auth-option-icon">T</div>
                 <div class="auth-option-info">
                   <div class="auth-option-name">Bearer Token</div>
@@ -135,7 +163,8 @@
 
           <!-- Skip Auth -->
           <div class="auth-section" id="skipAuthSection">
-            <button class="btn btn-secondary" id="skipAuthBtn" style="width: 100%;">Skip Authentication (Public Server)</button>
+            <button class="btn btn-secondary" id="skipAuthBtn" style="width: 100%;">Skip Authentication (Public
+              Server)</button>
           </div>
         </div>
       </div>
@@ -158,11 +187,11 @@
           <!-- Search Filter -->
           <div class="search-wrapper" id="searchWrapper">
             <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <input type="text" class="search-input" id="searchInput"
-                   placeholder="Filter tools, prompts, resources..."
-                   aria-label="Search filter">
+            <input type="text" class="search-input" id="searchInput" placeholder="Filter tools, prompts, resources..."
+              aria-label="Search filter">
           </div>
 
           <!-- Tools List -->
@@ -170,7 +199,8 @@
             <div class="tool-list" id="toolList">
               <div class="empty-state">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 <div>Connect to an MCP server to discover tools</div>
                 <div class="empty-state-action">
@@ -185,7 +215,8 @@
             <div class="prompt-list" id="promptList">
               <div class="empty-state">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
                 <div>No prompts available from this server</div>
               </div>
@@ -197,7 +228,8 @@
             <div class="resource-list" id="resourceList">
               <div class="empty-state">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <div>No resources available from this server</div>
               </div>
@@ -245,7 +277,8 @@
                   <span class="execution-time" id="execTime"></span>
                   <button class="copy-btn" id="copyBtn" style="display: none;" aria-label="Copy results to clipboard">
                     <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                     Copy
                   </button>
@@ -254,7 +287,8 @@
               <div class="results-content" id="results">
                 <div class="empty-state">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <div>Select a tool and execute to see results</div>
                 </div>
@@ -268,7 +302,8 @@
             <div class="chat-messages" id="chatMessages">
               <div class="empty-state">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
                 <div>Ask questions and the AI will use MCP tools to help</div>
               </div>
@@ -278,7 +313,8 @@
                 <textarea class="chat-input" id="chatInput" placeholder="Ask a question..." rows="1"></textarea>
                 <button class="chat-send-btn" id="chatSendBtn" aria-label="Send message">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
                 </button>
               </div>
@@ -289,7 +325,8 @@
     </div>
 
     <footer>
-      Made with <span class="heart">&lt;3</span> by <a href="https://h3manth.com" target="_blank" rel="noopener">Hemanth HM</a>
+      Made with <span class="heart">&lt;3</span> by <a href="https://h3manth.com" target="_blank" rel="noopener">Hemanth
+        HM</a>
     </footer>
   </div>
 
@@ -346,7 +383,8 @@
         <ul>
           <li><strong>Connect</strong> - Enter any MCP server URL (or pick from the examples)</li>
           <li><strong>Discover</strong> - The app fetches available tools via JSON-RPC</li>
-          <li><strong>Register</strong> - Tools get registered with <code>navigator.modelContext.provideContext()</code></li>
+          <li><strong>Register</strong> - Tools get registered with <code>navigator.modelContext.provideContext()</code>
+          </li>
           <li><strong>Use</strong> - Browser AI agents can now invoke these tools</li>
         </ul>
         <p>
@@ -392,7 +430,8 @@
 
         <h3>Links</h3>
         <ul>
-          <li><a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noopener">WebMCP Proposal</a></li>
+          <li><a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noopener">WebMCP Proposal</a>
+          </li>
           <li><a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a></li>
           <li><a href="https://h3manth.com" target="_blank" rel="noopener">h3manth.com</a></li>
         </ul>
@@ -432,4 +471,5 @@
   <script src="./js/ui/bindings.js" defer></script>
   <script src="./app.js" defer></script>
 </body>
+
 </html>
