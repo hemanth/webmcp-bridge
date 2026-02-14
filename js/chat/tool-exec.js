@@ -1,14 +1,33 @@
-    async function executeToolFromChat(toolName, args) {
+    function normalizeChatToolArgs(toolName, args) {
+      const safeArgs = (args && typeof args === 'object' && !Array.isArray(args)) ? { ...args } : {};
+
+      // Guardrail: stage must be an integer [0..4]. Drop invalid values.
+      if (Object.prototype.hasOwnProperty.call(safeArgs, 'stage')) {
+        const stageValue = Number(safeArgs.stage);
+        if (!Number.isInteger(stageValue) || stageValue < 0 || stageValue > 4) {
+          debugLog('warn', `Dropping invalid stage "${safeArgs.stage}" for tool ${toolName}`);
+          delete safeArgs.stage;
+        } else {
+          safeArgs.stage = stageValue;
+        }
+      }
+
+      return safeArgs;
+    }
+
+    async function executeToolFromChat(toolName, args, options = {}) {
+      const { echoResultToChat = true } = options;
+      const normalizedArgs = normalizeChatToolArgs(toolName, args);
       debugSeparator('Chat mode: Executing tool');
       debugLog('info', 'Tool:', toolName);
-      debugLog('info', 'Args:', args);
+      debugLog('info', 'Args:', normalizedArgs);
 
       try {
         const payload = {
           jsonrpc: '2.0',
           id: Date.now(),
           method: 'tools/call',
-          params: { name: toolName, arguments: args }
+          params: { name: toolName, arguments: normalizedArgs }
         };
 
         debugLog('info', '→ Sending tools/call request');
@@ -25,8 +44,11 @@
         // Handle auth errors
         if (response.status === 401 || response.status === 403) {
           debugLog('error', 'Auth error');
-          addChatMessage('assistant', 'Authentication required or token expired. Please reconnect.');
-          return;
+          const errorMessage = 'Authentication required or token expired. Please reconnect.';
+          if (echoResultToChat) {
+            addChatMessage('assistant', errorMessage);
+          }
+          return { ok: false, error: errorMessage };
         }
 
         const result = await parseSSEorJSON(response);
@@ -34,7 +56,11 @@
 
         if (result.error) {
           debugLog('error', 'Tool error:', result.error);
-          addChatMessage('assistant', `Tool error: ${result.error.message}`);
+          const errorMessage = `Tool error: ${result.error.message}`;
+          if (echoResultToChat) {
+            addChatMessage('assistant', errorMessage);
+          }
+          return { ok: false, error: errorMessage, raw: result.error };
         } else {
           debugLog('success', 'Tool success');
           let content = result.result;
@@ -47,10 +73,17 @@
             ? content
             : JSON.stringify(content, null, 2);
 
-          addChatMessage('assistant', formatted);
+          if (echoResultToChat) {
+            addChatMessage('assistant', formatted);
+          }
+          return { ok: true, content: formatted, raw: result.result };
         }
       } catch (error) {
         debugLog('error', 'Execution error:', error.message);
-        addChatMessage('assistant', `Error executing tool: ${error.message}`);
+        const errorMessage = `Error executing tool: ${error.message}`;
+        if (echoResultToChat) {
+          addChatMessage('assistant', errorMessage);
+        }
+        return { ok: false, error: errorMessage };
       }
     }

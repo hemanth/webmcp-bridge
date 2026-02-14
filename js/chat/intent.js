@@ -1,142 +1,252 @@
-    async function processWithAI(message) {
+    function getToolByName(toolName) {
+      return tools.find((tool) => tool.name === toolName);
+    }
+
+    function extractJsonObject(text) {
+      if (!text) return null;
+      const trimmed = text.trim();
+
+      // direct JSON
       try {
-        addChatMessage('assistant', 'Thinking...');
+        return JSON.parse(trimmed);
+      } catch {}
 
-        const response = await aiSession.prompt(message);
+      // fenced code block JSON
+      const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+      if (fencedMatch?.[1]) {
+        try {
+          return JSON.parse(fencedMatch[1]);
+        } catch {}
+      }
 
-        // Remove "Thinking..." message
-        const messages = document.querySelectorAll('.chat-message.assistant');
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg && lastMsg.textContent === 'Thinking...') {
-          lastMsg.textContent = response;
+      // first JSON object fallback
+      const start = trimmed.indexOf('{');
+      const end = trimmed.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try {
+          return JSON.parse(trimmed.slice(start, end + 1));
+        } catch {}
+      }
+
+      return null;
+    }
+
+    function validateToolAction(action) {
+      if (!action || typeof action !== 'object') return { valid: false, error: 'Response is not JSON.' };
+      if (!action.type || (action.type !== 'tool_call' && action.type !== 'final')) {
+        return { valid: false, error: 'Missing or invalid "type". Use "tool_call" or "final".' };
+      }
+      if (action.type === 'final') {
+        if (typeof action.message !== 'string' || action.message.trim() === '') {
+          return { valid: false, error: '"final" requires non-empty "message".' };
+        }
+        return { valid: true };
+      }
+
+      if (typeof action.tool !== 'string' || !action.tool.trim()) {
+        return { valid: false, error: '"tool_call" requires "tool".' };
+      }
+      if (action.args == null || typeof action.args !== 'object' || Array.isArray(action.args)) {
+        return { valid: false, error: '"tool_call" requires "args" object.' };
+      }
+      if (!getToolByName(action.tool)) {
+        return { valid: false, error: `Unknown tool "${action.tool}".` };
+      }
+      return { valid: true };
+    }
+
+    function extractExplicitStageFromMessage(userMessage) {
+      if (!userMessage) return null;
+      const message = userMessage.toLowerCase();
+
+      const patterns = [
+        /\bstage\s*[:=]?\s*(\d)\b/,
+        /\bat\s+stage\s+(\d)\b/,
+        /\bstage\s+(\d)\b/
+      ];
+
+      for (const pattern of patterns) {
+        const match = message.match(pattern);
+        if (match) {
+          const value = Number(match[1]);
+          if (Number.isFinite(value)) return value;
+        }
+      }
+      return null;
+    }
+
+    function isStageLookupQuestion(userMessage) {
+      if (!userMessage) return false;
+      const message = userMessage.trim().toLowerCase();
+      return (
+        /which\s+stage|what\s+stage|stage\s+is\s+.+\s+(?:on|in|at)/.test(message) ||
+        /.+\s+is\s+(?:on|in|at)\??$/.test(message)
+      );
+    }
+
+    function extractStageLookupSubject(userMessage) {
+      if (!userMessage) return null;
+      const trimmed = userMessage.trim();
+      const match = trimmed.match(/(?:which|what)\s+stage\s+is\s+(.+?)\s+(?:on|in|at)\??$/i);
+      const shorthandMatch = trimmed.match(/^(.+?)\s+is\s+(?:on|in|at)\??$/i);
+      const rawSubject = match?.[1] || shorthandMatch?.[1];
+      if (!rawSubject) return null;
+      const subject = rawSubject.trim();
+      if (!subject) return null;
+      if (/^stage\s+\d+$/i.test(subject)) return null;
+      if (/^tc39$/i.test(subject)) return null;
+      return subject;
+    }
+
+    function validateActionAgainstCurrentRequest(action, userMessage) {
+      if (!action || action.type !== 'tool_call') return { valid: true };
+
+      const stageLookupSubject = extractStageLookupSubject(userMessage);
+      if (stageLookupSubject && action.tool !== 'search_proposals') {
+        return {
+          valid: false,
+          error: `For "which stage is X on?" queries, call "search_proposals" first with query="${stageLookupSubject}".`
+        };
+      }
+
+      const stageArgPresent = action.args && Object.prototype.hasOwnProperty.call(action.args, 'stage');
+      if (!stageArgPresent) return { valid: true };
+
+      const explicitStage = extractExplicitStageFromMessage(userMessage);
+      if (explicitStage == null) {
+        // Recovery path: if model invented/retained stage filter, strip it and proceed.
+        delete action.args.stage;
+        return { valid: true };
+      }
+
+      const stageValue = Number(action.args.stage);
+      if (!Number.isInteger(stageValue) || stageValue < 0 || stageValue > 4) {
+        return { valid: false, error: '"stage" must be an integer between 0 and 4.' };
+      }
+
+      if (stageValue !== explicitStage) {
+        return {
+          valid: false,
+          error: `Requested stage must match the user message (expected ${explicitStage}).`
+        };
+      }
+
+      return { valid: true };
+    }
+
+    async function promptWithTimeout(prompt, timeoutMs = 25000) {
+      return await Promise.race([
+        aiSession.prompt(prompt),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`Prompt API timeout after ${timeoutMs}ms`)), timeoutMs);
+        })
+      ]);
+    }
+
+    function buildToolUsePrompt(userMessage, toolHistory = [], previousError = null) {
+      const toolList = tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description || '',
+        inputSchema: tool.inputSchema || { type: 'object', properties: {} }
+      }));
+
+      const historyText = toolHistory.length > 0
+        ? toolHistory.map((h, idx) => {
+            const resultStr = typeof h.result === 'string' ? h.result : JSON.stringify(h.result, null, 2);
+            return `Step ${idx + 1}\nTool: ${h.tool}\nArgs: ${JSON.stringify(h.args)}\nResult:\n${resultStr}`;
+          }).join('\n\n')
+        : 'None yet.';
+
+      const errorText = previousError ? `Previous response error: ${previousError}\n` : '';
+
+      return `You are a tool-using assistant.
+You must respond with ONLY valid JSON.
+
+Output schema:
+{
+  "type": "tool_call" | "final",
+  "tool": "<tool name if type=tool_call>",
+  "args": { ... } ,
+  "message": "<final user-facing answer if type=final>"
+}
+
+Rules:
+- Do not include markdown.
+- Do not include extra keys.
+- Use "tool_call" if you need more data.
+- Use "final" only when ready to answer user.
+- For tool calls, choose one tool and produce concrete args.
+- Use only constraints from the current user request.
+- Never carry over filters (like stage) from earlier chat turns unless explicitly stated now.
+- For "which stage is X on?" questions, call search_proposals with query X before any summary tool.
+- Treat shorthand like "Error Cause is on?" as a stage lookup for that proposal.
+- Never invent sentinel values (for example stage: -1). Omit a field if unknown.
+- If asking for the stage of a proposal:
+  1. Call search_proposals with {"query":"<proposal name>"} and no stage filter unless user explicitly gave one.
+  2. Then return a final answer with the stage from tool results.
+- If no proposal match is found, say that clearly in "final" and suggest a close keyword.
+
+Available tools:
+${JSON.stringify(toolList, null, 2)}
+
+User request:
+${userMessage}
+
+Tool call history:
+${historyText}
+
+${errorText}`.trim();
+    }
+
+    async function processWithAI(message) {
+      const maxSteps = 6;
+      const toolHistory = [];
+      let previousError = null;
+
+      try {
+        const thinkingEl = addChatMessage('assistant', 'Thinking...');
+
+        for (let step = 0; step < maxSteps; step += 1) {
+          thinkingEl.innerHTML = renderSimpleMarkdown(`Thinking... (${step + 1}/${maxSteps})`);
+          const prompt = buildToolUsePrompt(message, toolHistory, previousError);
+          const rawResponse = await promptWithTimeout(prompt);
+          const rawText = typeof rawResponse === 'string'
+            ? rawResponse
+            : (rawResponse?.text || JSON.stringify(rawResponse));
+          const parsed = extractJsonObject(rawText);
+          const validation = validateToolAction(parsed);
+
+          if (!validation.valid) {
+            previousError = validation.error;
+            continue;
+          }
+
+          const requestValidation = validateActionAgainstCurrentRequest(parsed, message);
+          if (!requestValidation.valid) {
+            previousError = requestValidation.error;
+            continue;
+          }
+
+          if (parsed.type === 'final') {
+            thinkingEl.innerHTML = renderSimpleMarkdown(parsed.message);
+            return;
+          }
+
+          addToolCallMessage(parsed.tool, parsed.args);
+          const toolResult = await executeToolFromChat(parsed.tool, parsed.args, { echoResultToChat: false });
+
+          if (!toolResult.ok) {
+            toolHistory.push({ tool: parsed.tool, args: parsed.args, result: `ERROR: ${toolResult.error}` });
+          } else {
+            toolHistory.push({ tool: parsed.tool, args: parsed.args, result: toolResult.content });
+          }
+          previousError = null;
         }
 
-
-        // Check if AI wants to use a tool (simple heuristic)
-        const toolMatch = tools.find(t =>
-          response.toLowerCase().includes(t.name.toLowerCase()) ||
-          response.toLowerCase().includes('let me search') ||
-          response.toLowerCase().includes('i\'ll look')
+        thinkingEl.innerHTML = renderSimpleMarkdown(
+          'I could not complete this with tools in time. Please try refining your request.'
         );
-
-        if (toolMatch) {
-          // Extract potential arguments from context
-          await executeToolFromChat(toolMatch.name, {});
-        }
-
       } catch (error) {
         addChatMessage('assistant', `Error: ${error.message}`);
       }
-    }
-
-    async function processWithSimpleMatching(message) {
-      // Simple keyword matching to find relevant tool
-      const lowerMessage = message.toLowerCase();
-
-      let matchedTool = null;
-      let args = {};
-
-      // Check for specific tool patterns first
-      if (lowerMessage.includes('stage') && lowerMessage.match(/\d/)) {
-        // "stage 3 proposals" or "list stage 2"
-        matchedTool = tools.find(t => t.name === 'list_proposals_by_stage');
-      } else if (lowerMessage.includes('compare') || lowerMessage.includes('vs') || lowerMessage.includes('versus')) {
-        matchedTool = tools.find(t => t.name === 'compare_proposals');
-      } else if (lowerMessage.includes('champion')) {
-        matchedTool = tools.find(t => t.name === 'get_champions');
-      } else if (lowerMessage.includes('summary') || lowerMessage.includes('count') || lowerMessage.includes('how many')) {
-        matchedTool = tools.find(t => t.name === 'get_stage_summary');
-      } else {
-        // Try keyword matching from tool names/descriptions
-        for (const tool of tools) {
-          const toolWords = tool.name.toLowerCase().split('_');
-          const descWords = (tool.description || '').toLowerCase().split(' ');
-
-          if (toolWords.some(w => lowerMessage.includes(w)) ||
-              descWords.some(w => w.length > 4 && lowerMessage.includes(w))) {
-            matchedTool = tool;
-            break;
-          }
-        }
-      }
-
-      // Default to search_proposals for any unmatched query
-      if (!matchedTool && message.trim().length > 0) {
-        matchedTool = tools.find(t => t.name === 'search_proposals') || tools[0];
-      }
-
-      if (matchedTool) {
-        // Extract search term from natural language query
-        args = extractArgsFromMessage(message, matchedTool);
-
-        addChatMessage('tool-call', `Calling with args: ${JSON.stringify(args)}`, matchedTool.name);
-        await executeToolFromChat(matchedTool.name, args);
-      } else {
-        addChatMessage('assistant', `I found ${tools.length} tools available. Try asking about: ${tools.slice(0, 5).map(t => t.name).join(', ')}...`);
-      }
-    }
-
-    function extractArgsFromMessage(message, tool) {
-      const args = {};
-      const schema = tool.inputSchema;
-      const properties = schema?.properties || {};
-      const lowerMessage = message.toLowerCase();
-
-      // Common filler words to remove
-      const stopWords = [
-        'what', 'are', 'is', 'the', 'a', 'an', 'that', 'which', 'how', 'do', 'does',
-        'can', 'could', 'would', 'should', 'will', 'about', 'for', 'with', 'using',
-        'uses', 'use', 'find', 'search', 'show', 'me', 'list', 'get', 'proposals',
-        'proposal', 'stage', 'by', 'in', 'of', 'to', 'and', 'or', 'any', 'all'
-      ];
-
-      // Check if tool needs a 'query' parameter
-      if (properties.query) {
-        // Extract meaningful words from message
-        const words = message.split(/\s+/);
-        const meaningful = words.filter(w => {
-          const clean = w.toLowerCase().replace(/[^a-z0-9]/g, '');
-          return clean.length > 1 && !stopWords.includes(clean);
-        });
-
-        // Use the most specific term (often capitalized or quoted)
-        const quoted = message.match(/["']([^"']+)["']/);
-        if (quoted) {
-          args.query = quoted[1];
-        } else if (meaningful.length > 0) {
-          // Prefer capitalized words as they're likely proper terms
-          const capitalized = meaningful.filter(w => /^[A-Z]/.test(w));
-          args.query = capitalized.length > 0 ? capitalized.join(' ') : meaningful.join(' ');
-        } else {
-          args.query = message;
-        }
-      }
-
-      // Check for 'stage' parameter (number extraction)
-      if (properties.stage) {
-        const stageMatch = lowerMessage.match(/stage\s*(\d+)/);
-        if (stageMatch) {
-          args.stage = parseInt(stageMatch[1]);
-        }
-      }
-
-      // Check for 'id' parameter
-      if (properties.id) {
-        // Look for quoted strings or specific identifiers
-        const quoted = message.match(/["']([^"']+)["']/);
-        if (quoted) {
-          args.id = quoted[1];
-        }
-      }
-
-      // Check for comparison parameters (id1, id2)
-      if (properties.id1 && properties.id2) {
-        const quoted = message.match(/["']([^"']+)["']/g);
-        if (quoted && quoted.length >= 2) {
-          args.id1 = quoted[0].replace(/["']/g, '');
-          args.id2 = quoted[1].replace(/["']/g, '');
-        }
-      }
-
-      return args;
     }

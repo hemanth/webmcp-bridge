@@ -21,12 +21,22 @@
       addChatMessage('user', message);
       input.value = '';
 
-      // Process with AI or simple tool matching
-      if (aiSession) {
-        await processWithAI(message);
-      } else {
-        await processWithSimpleMatching(message);
+      await checkAISupport();
+
+      if (!aiSession && window.LanguageModel) {
+        await initAISession();
+        await checkAISupport();
       }
+
+      if (!aiSession) {
+        addChatMessage(
+          'assistant',
+          `Prompt API is not available. ${promptApiState.reason} Enable Prompt API in your browser, then reconnect.`
+        );
+        return;
+      }
+
+      await processWithAI(message);
     }
 
     function addChatMessage(role, content, toolName = null) {
@@ -47,6 +57,29 @@
 
       messagesContainer.appendChild(messageEl);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return messageEl;
+    }
+
+    function addToolCallMessage(toolName, args = {}) {
+      const messagesContainer = document.getElementById('chatMessages');
+      const messageEl = document.createElement('div');
+      messageEl.className = 'chat-message tool-call tool-call-subtle';
+
+      const detailsEl = createElement('details', { className: 'tool-call-details' });
+      const summaryEl = createElement('summary', { className: 'tool-call-summary' });
+      summaryEl.appendChild(createElement('span', { className: 'tool-call-label', text: 'Using tool' }));
+      summaryEl.appendChild(createElement('span', { className: 'tool-name', text: toolName || 'Tool' }));
+
+      const argsPreEl = createElement('pre', { className: 'tool-call-args' });
+      argsPreEl.textContent = JSON.stringify(args || {}, null, 2);
+
+      detailsEl.appendChild(summaryEl);
+      detailsEl.appendChild(argsPreEl);
+      messageEl.appendChild(detailsEl);
+
+      messagesContainer.appendChild(messageEl);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return messageEl;
     }
 
     function renderSimpleMarkdown(text) {
