@@ -1,79 +1,114 @@
 # webmcp-bridge
 
-Browser bridge for remote MCP servers.
+Connect any MCP server to Chrome's WebMCP API.
 
-Connect to an MCP endpoint, inspect tools/prompts/resources, execute them from the UI, and register tools with WebMCP (`navigator.modelContext`) when available.
-
-Built as a browser-first MCP playground. No build step. No framework.
-
-## quick start
+You have MCP servers. You want them in the browser. This module connects to a remote MCP server, discovers its tools, and registers them with `navigator.modelContext`.
 
 ```bash
-cd webmcp-bridge
-python3 -m http.server 8080
+npm install webmcp-bridge
 ```
 
-Open `http://localhost:8080`.
+## Usage
 
-If `8080` is busy:
+```javascript
+import { WebMCPBridge } from 'webmcp-bridge';
 
-```bash
-python3 -m http.server 8081
+const bridge = new WebMCPBridge('https://mcp.example.com');
+await bridge.connect();
+bridge.register();
 ```
 
-## features
+That's it. Tools are now available to Chrome's AI agent.
 
-- MCP over JSON-RPC (`initialize`, `tools/list`, `prompts/list`, `resources/list`, `tools/call`)
-- Tool/prompt/resource explorer + executor
-- Chat mode with Prompt API (`window.LanguageModel`) and guarded LLM tool planning
-- Prompt API readiness states (`missing`, `downloading`, `ready`, `error`) with chat gating until ready
-- Subtle tool-call trace UI ("Using tool ...") with collapsible args for debugging
-- OAuth discovery + manual auth options
-- WebMCP tool registration for browser AI surfaces
+## With context enrichment
 
-## request flow
+```javascript
+const bridge = new WebMCPBridge('https://mcp.example.com', {
+  enrichContext: (toolName, args) => ({
+    ...args,
+    user_locale: navigator.language,
+    user_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }),
+  onResponse: (toolName, result) => {
+    console.log(`[${toolName}]`, result);
+    return result;
+  },
+});
 
-1. Connect to MCP server URL
-2. Run `initialize`
-3. Fetch capabilities (`tools/list`, optional `prompts/list`, optional `resources/list`)
-4. Execute selected action
-5. Surface results in UI and optionally expose tools via WebMCP
+await bridge.connect();
+bridge.register();
+```
 
-When WebMCP is available, each discovered tool is re-exposed with an `execute(args)` function that proxies to remote `tools/call`.
+## With auth
 
-## project layout
+```javascript
+const bridge = new WebMCPBridge('https://mcp.example.com');
+bridge.setAuth({ type: 'bearer', token: 'sk-...' });
+await bridge.connect();
+```
 
-- `index.html` - app shell
-- `styles.css` - styles
-- `app.js` - bootstrap (`init()`)
-- `js/core/` - shared state + init
-- `js/auth/` - auth client + auth UI
-- `js/mcp/` - parser, connection, execution, WebMCP integration
-- `js/ui/` - rendering and interactions
-- `js/chat/` - chat flow and tool intent logic
-- `js/utils/` - utility helpers
+Supports `bearer`, `apikey`, and `basic` auth. OAuth with PKCE is handled by the `MCPAuth` class.
 
-## browser notes
+## Custom headers
 
-- WebMCP testing currently requires Chrome 146+ and flag:
-  - `chrome://flags/#enable-webmcp-testing`
-- Prompt API requires browser support for `window.LanguageModel`.
-- While the on-device model downloads, chat remains disabled and unlocks automatically when ready.
-- Download progress events can be sparse depending on Chrome build; `0%` can persist even when download is in progress.
-- Without WebMCP, the app still works as an MCP explorer/test client.
-- If the remote MCP server does not allow your origin via CORS, direct browser calls will fail.
+```javascript
+const bridge = new WebMCPBridge('https://mcp.example.com', {
+  headers: {
+    'X-Custom-Header': 'value',
+    'Authorization': 'Bearer sk-...',
+  },
+});
+```
 
-## storage behavior
+Custom headers are merged into every request. Auth headers from `setAuth()` are applied first, then your custom headers override.
 
-- Recent connections: `localStorage`
-- OAuth/client/session metadata: `sessionStorage`
-- Manual API key/basic/bearer creds: in memory only
+## Add page-local tools
 
-## auth behavior
+```javascript
+bridge.register([
+  {
+    name: 'get_selection',
+    description: 'Get the currently selected text on the page',
+    inputSchema: { type: 'object', properties: {} },
+    execute: async () => ({
+      content: [{ type: 'text', text: window.getSelection().toString() }],
+    }),
+  },
+]);
+```
 
-- Supports OAuth discovery from `/.well-known/oauth-authorization-server`
-- Supports dynamic client registration if server exposes `registration_endpoint`
-- Supports PKCE auth code flow
-- Supports manual API key / basic / bearer for testing
+Mix remote MCP tools with local browser capabilities.
 
-OAuth success in browser depends on endpoint accessibility + CORS on required auth/token routes.
+## API
+
+### `new WebMCPBridge(serverUrl, options?)`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `headers` | `object` | Custom headers merged into every request |
+| `enrichContext` | `(name, args) => args` | Enrich tool args before proxying |
+| `onToolCall` | `(name, args) => void` | Called before each tool call |
+| `onResponse` | `(name, result) => result` | Transform responses |
+| `onError` | `(name, error) => void` | Error handler |
+| `logger` | `object` | Custom logger (default: `console`) |
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `connect()` | `{ tools, prompts, resources }` | Initialize + discover |
+| `register(extraTools?)` | `tool[]` | Register with WebMCP |
+| `callTool(name, args)` | `result` | Call a tool |
+| `getPrompt(name, args)` | `result` | Get a prompt |
+| `readResource(uri)` | `result` | Read a resource |
+| `setAuth({ type, token })` | — | Set auth before connecting |
+| `disconnect()` | — | Clear context + logout |
+
+## Browser requirements
+
+- Chrome 146+ with `chrome://flags/#enable-webmcp-testing`
+- Without WebMCP, `connect()` and `callTool()` still work — you just can't `register()`
+
+## License
+
+MIT

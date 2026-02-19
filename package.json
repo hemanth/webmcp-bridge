@@ -1,0 +1,30 @@
+{
+    "name": "webmcp-bridge",
+    "version": "1.0.0",
+    "description": "Connect any MCP server to Chrome's WebMCP API",
+    "type": "module",
+    "main": "src/index.js",
+    "module": "src/index.js",
+    "exports": {
+        ".": "./src/index.js"
+    },
+    "files": [
+        "src/"
+    ],
+    "keywords": [
+        "mcp",
+        "webmcp",
+        "model-context-protocol",
+        "chrome",
+        "ai",
+        "agents",
+        "browser"
+    ],
+    "author": "Hemanth HM <hemanth.hm@gmail.com>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/hemanth/webmcp-bridge"
+    },
+    "homepage": "https://github.com/hemanth/webmcp-bridge"
+}
