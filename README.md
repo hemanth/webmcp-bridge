@@ -1,17 +1,17 @@
-# webmcp-bridge
+# mcp-web-bridge
 
 Connect any MCP server to Chrome's WebMCP API.
 
 You have MCP servers. You want them in the browser. This module connects to a remote MCP server, discovers its tools, and registers them with `navigator.modelContext`.
 
 ```bash
-npm install webmcp-bridge
+npm install mcp-web-bridge
 ```
 
 ## Usage
 
 ```javascript
-import { WebMCPBridge } from 'webmcp-bridge';
+import { WebMCPBridge } from 'mcp-web-bridge';
 
 const bridge = new WebMCPBridge('https://mcp.example.com');
 await bridge.connect();

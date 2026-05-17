@@ -1,6 +1,6 @@
 {
-    "name": "webmcp-bridge",
-    "version": "1.0.0",
+    "name": "mcp-web-bridge",
+    "version": "1.0.1",
     "description": "Connect any MCP server to Chrome's WebMCP API",
     "type": "module",
     "main": "src/index.js",
@@ -24,7 +24,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/hemanth/webmcp-bridge"
+        "url": "https://github.com/hemanth/mcp-web-bridge"
     },
-    "homepage": "https://github.com/hemanth/webmcp-bridge"
+    "homepage": "https://github.com/hemanth/mcp-web-bridge"
 }
